@@ -613,3 +613,62 @@ with open("columns.json","w") as f:
 
 
 
+import json
+columns={
+    'data_cloumns': [col.lower() for col in X.columns]
+}
+with open("columns.json","w") as f:
+    f.write(json.dumps(columns))
+
+
+predict_price('Uttarahalli',1000,2,1)
+from flask import Flask, render_template_string, request
+app = Flask(__name__)
+
+# Load model and columns
+model = pickle.load(open("bengaluru.pickle", "rb"))
+import json
+
+import json
+
+# Load model
+model = pickle.load(open("bengaluru.pickle", "rb"))
+
+# Load columns from JSON
+with open("columns.json", "r") as f:
+    columns = json.load(f)["data_cloumns"]
+
+# Load locations from dataset
+df = pd.read_csv("Processed_Bengaluru_Dataset.csv")
+locations = sorted(df["location"].unique())
+location_options = "\n".join([f'<option value="{loc}">{loc}</option>' for loc in locations])
+
+with open("index.html", "r") as file:
+    html_template = file.read()
+@app.route("/", methods=["GET", "POST"])
+def index():
+    prediction = None
+    if request.method == "POST":
+        location = request.form["location"]
+        sqft = float(request.form["total_sqft"])
+        bhk = int(request.form["bhk"])
+        bath = int(request.form["bath"])
+
+        x = np.zeros(len(columns))
+        try:
+            loc_index = columns.index(location.lower())
+        except ValueError:
+            loc_index = -1
+
+        x[0] = sqft
+        x[1] = bath
+        x[2] = bhk
+        if loc_index >= 0:
+            x[loc_index] = 1
+
+        prediction = round(model.predict([x])[0], 2)
+
+    return render_template_string(html_template, location_options=location_options, prediction=prediction)
+if __name__ == "__main__":
+    app.run(debug=True)
+
